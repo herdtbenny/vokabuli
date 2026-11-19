@@ -9,10 +9,11 @@ export function nextReviewLabel(prev: CardProgress | undefined, rating: Rating):
   if (min < 60) return `${min} Min`
   const hours = Math.round(min / 60)
   if (hours < 24) return `${hours} Std`
+  // Dativ, weil das Label hinter "in" steht ("in 4 Tagen")
   const days = Math.round(hours / 24)
-  if (days < 30) return days === 1 ? '1 Tag' : `${days} Tage`
+  if (days < 30) return days === 1 ? '1 Tag' : `${days} Tagen`
   const months = Math.round(days / 30)
-  return months === 1 ? '1 Monat' : `${months} Monate`
+  return months === 1 ? '1 Monat' : `${months} Monaten`
 }
 
 export function newProgress(): CardProgress {
@@ -45,6 +46,13 @@ export function review(prev: CardProgress | undefined, rating: Rating): CardProg
   p.learned = true
   if (rating === 'hard') p.ease = Math.max(1.3, p.ease - 0.15)
   if (rating === 'easy') p.ease = p.ease + 0.15
+
+  // Neue Karte als "schwer" bewertet: noch heute (in 10 Min) wiederholen statt erst morgen
+  if (p.reps === 0 && rating === 'hard') {
+    p.interval = 0
+    p.due = Date.now() + 10 * 60 * 1000
+    return p
+  }
 
   if (p.reps === 0) {
     p.interval = rating === 'easy' ? 3 : 1

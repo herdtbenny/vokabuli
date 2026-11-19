@@ -9,17 +9,21 @@ liegen lokal im Browser (localStorage).
 ## Features
 
 - **Profile ohne Anmeldung** (Netflix-Stil) – jede Person hat eigenen Fortschritt, Level & Serie
-- **7 Kategorien** mit über 240 vorbefüllten Vokabeln:
-  ⚖️ Jura · 💼 Business & Office Flex · 🛒 Alltag · ⚽ Sport · 💰 Wirtschaft · 🍽️ Essen · ✈️ Reisen
-- **4 Lernmodi:** Karteikarten (umdrehen), Multiple Choice, Schreiben, Hören
-- **Spaced Repetition** (SM-2) – Karten kommen wieder, wenn du sie fast vergisst
+- **7 Kategorien mit rund 2.450 Vokabeln** (je ~350, Niveau B1–C1), jede mit Beispielsatz + Übersetzung:
+  ⚖️ Jura · 💼 Business & Office Flex · 🛒 Alltag & Umgangssprache · ⚽ Sport · 💰 Wirtschaft · 🍽️ Essen · ✈️ Reisen
+- **4 Lernarten, frei kombinierbar:** Karteikarten, Multiple Choice, Schreiben, Hören –
+  einzeln, mehrere oder „Alle" (dann wird pro Karte gemischt)
+- **Spaced Repetition** (SM-2) – beim Bewerten siehst du direkt, wann die Karte wiederkommt
 - **Aussprache** per Text-to-Speech (im Browser eingebaut)
-- **Beispielsätze** mit Übersetzung zu jeder Vokabel
-- **Gamification:** XP, Level, Tages-Serie 🔥, Tagesziel, Erfolge/Badges, Konfetti & Sounds
-- **Schnell-Review** – nur die fälligen Karten in wenigen Minuten
-- **Eigene Decks & Karten** anlegen
-- **KI-Deck-Generator** (optional) – erstellt Vokabeln zu einem Thema. Eigener API-Key,
-  nur lokal gespeichert, OpenAI-kompatibel (siehe Einstellungen).
+- **Gamification:** XP, Level, Tages-Serie 🔥, Tagesziel, Erfolge, Konfetti & Sounds
+- **Schnell-Review** – nur die fälligen Wiederholungen
+- **Eigene Kategorien** mit eigenen Karten anlegen
+
+## Vokabeln ergänzen
+
+Jede Kategorie liegt als eigene Datei in [`src/data/`](src/data/) im kompakten Format
+`[englisch, deutsch, Beispielsatz, Übersetzung, Hinweis?]`. Karten-IDs werden aus dem
+englischen Begriff abgeleitet – neue Einträge verschieben also keinen bestehenden Lernfortschritt.
 
 ## Entwicklung
 
