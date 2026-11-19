@@ -40,23 +40,24 @@ function kind(en: string): 'verb' | 'phrase' | 'word' {
   return en.trim().split(/\s+/).length > 1 ? 'phrase' : 'word'
 }
 
-// Wählt plausible falsche Antworten: gleiche Kategorie, gleiche Wortart, ähnlich lange Übersetzung.
-function pickDistractors(card: Card, pool: Card[], n = 3): string[] {
-  const candidates = pool.filter((c) => c.id !== card.id && c.de !== card.de)
+// Wählt plausible falsche Antworten: gleiche Kategorie, gleiche Wortart, ähnlich lange Antwort.
+// field = 'de' (Englisch -> Deutsch) oder 'en' (umgekehrt: Deutsch -> Englisch)
+function pickDistractors(card: Card, pool: Card[], field: 'de' | 'en', n = 3): string[] {
+  const candidates = pool.filter((c) => c.id !== card.id && c[field] !== card[field])
   const k = kind(card.en)
-  const len = card.de.length
+  const len = card[field].length
   const similar = candidates
     .filter((c) => kind(c.en) === k)
-    .sort((a, b) => Math.abs(a.de.length - len) - Math.abs(b.de.length - len))
+    .sort((a, b) => Math.abs(a[field].length - len) - Math.abs(b[field].length - len))
   // aus den ähnlichsten zufällig wählen (Abwechslung), dann notfalls mit dem Rest auffüllen
   const ordered = [...shuffle(similar.slice(0, 12)), ...shuffle(candidates)]
-  const seen = new Set([card.de])
+  const seen = new Set([card[field]])
   const picked: string[] = []
   for (const c of ordered) {
     if (picked.length >= n) break
-    if (seen.has(c.de)) continue
-    seen.add(c.de)
-    picked.push(c.de)
+    if (seen.has(c[field])) continue
+    seen.add(c[field])
+    picked.push(c[field])
   }
   return picked
 }
@@ -64,6 +65,7 @@ function pickDistractors(card: Card, pool: Card[], n = 3): string[] {
 const MODE_LABEL: Record<StudyMode, string> = {
   flip: 'Karteikarte',
   choice: 'Multiple Choice',
+  reverse: 'Umgekehrt',
   type: 'Schreiben',
   listen: 'Hören',
 }
@@ -136,9 +138,10 @@ export default function StudySession({ deckId, modes, quick, navigate }: Props) 
   const options = useMemo(() => {
     if (!card) return []
     const own = deckCardsOf.get(card.id) ?? []
+    const field = mode === 'reverse' ? 'en' : 'de'
     // Sehr kleine eigene Kategorien (< 4 Karten) bekommen notfalls Antworten aus allen Kategorien
-    const wrong = pickDistractors(card, own.length >= 4 ? own : allCards)
-    return shuffle([card.de, ...wrong])
+    const wrong = pickDistractors(card, own.length >= 4 ? own : allCards, field)
+    return shuffle([card[field], ...wrong])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, card?.id])
 
@@ -191,12 +194,13 @@ export default function StudySession({ deckId, modes, quick, navigate }: Props) 
   }
 
   function renderChoices(delay: number) {
+    const answer = mode === 'reverse' ? card.en : card.de
     return (
       <div className="choices">
         {options.map((opt) => {
           let cls = 'choice'
           if (picked) {
-            if (opt === card.de) cls += ' correct'
+            if (opt === answer) cls += ' correct'
             else if (opt === picked) cls += ' wrong'
             else cls += ' dim'
           }
@@ -207,7 +211,8 @@ export default function StudySession({ deckId, modes, quick, navigate }: Props) 
               disabled={!!picked}
               onClick={() => {
                 setPicked(opt)
-                setTimeout(() => handleResult(opt === card.de ? 'good' : 'again'), delay)
+                if (mode === 'reverse') speak(card.en)
+                setTimeout(() => handleResult(opt === answer ? 'good' : 'again'), delay)
               }}
             >
               {opt}
@@ -294,6 +299,19 @@ export default function StudySession({ deckId, modes, quick, navigate }: Props) 
             <div className="muted">Was bedeutet das?</div>
           </div>
           {renderChoices(850)}
+        </>
+      )}
+
+      {/* ---------- Umgekehrt: Deutsch -> Englisch ---------- */}
+      {mode === 'reverse' && (
+        <>
+          <div className="prompt-card">
+            <div className="big" style={{ fontSize: 26 }}>
+              {card.de}
+            </div>
+            <div className="muted">Welcher englische Begriff passt?</div>
+          </div>
+          {renderChoices(1100)}
         </>
       )}
 

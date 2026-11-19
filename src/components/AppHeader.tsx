@@ -1,17 +1,21 @@
-import { Volume2, VolumeX } from 'lucide-react'
+import { UserButton } from '@clerk/react'
+import { CloudOff, Volume2, VolumeX } from 'lucide-react'
 import { useStore } from '../store'
-import { initial } from '../nav'
 import { Logo } from './Logo'
 
-// Schmale Kopfzeile: Logo + Name links, Ton und Profil als kleine Icon-Buttons rechts.
+// Schmale Kopfzeile: Logo + Name links; Ton und Konto (Abmelden, Konto verwalten) als kleine Buttons rechts.
 export default function AppHeader() {
-  const { currentProfile, settings, updateSettings, logout } = useStore()
-  const p = currentProfile!
+  const { settings, updateSettings, syncStatus } = useStore()
 
   return (
     <header className="app-header">
       <Logo />
       <div className="header-actions">
+        {syncStatus === 'offline' && (
+          <span className="sync-hint" title="Offline – deine Fortschritte werden gespeichert, sobald du wieder online bist">
+            <CloudOff size={16} aria-hidden /> Offline
+          </span>
+        )}
         <button
           className="header-btn"
           aria-label={settings.sound ? 'Ton ausschalten' : 'Ton einschalten'}
@@ -20,15 +24,9 @@ export default function AppHeader() {
         >
           {settings.sound ? <Volume2 size={19} aria-hidden /> : <VolumeX size={19} aria-hidden />}
         </button>
-        <button
-          className="header-avatar"
-          style={{ background: p.color }}
-          aria-label={`Profil wechseln (angemeldet: ${p.name})`}
-          title="Profil wechseln"
-          onClick={logout}
-        >
-          {initial(p.name)}
-        </button>
+        <UserButton
+          appearance={{ elements: { avatarBox: { width: '38px', height: '38px', borderRadius: '12px' } } }}
+        />
       </div>
     </header>
   )

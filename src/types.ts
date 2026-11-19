@@ -50,6 +50,6 @@ export interface Profile {
   stats: { correct: number; wrong: number }
 }
 
-export type StudyMode = 'flip' | 'choice' | 'type' | 'listen'
+export type StudyMode = 'flip' | 'choice' | 'reverse' | 'type' | 'listen'
 
 export type Rating = 'again' | 'hard' | 'good' | 'easy'

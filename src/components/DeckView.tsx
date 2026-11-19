@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   ArrowLeft,
+  ArrowLeftRight,
   Check,
   Headphones,
   Keyboard,
@@ -21,7 +22,8 @@ import { speak } from '../tts'
 
 const MODES: { mode: StudyMode; icon: LucideIcon; title: string; desc: string }[] = [
   { mode: 'flip', icon: Layers, title: 'Karteikarten', desc: 'Umdrehen & selbst bewerten' },
-  { mode: 'choice', icon: ListChecks, title: 'Multiple Choice', desc: 'Richtige Antwort wählen' },
+  { mode: 'choice', icon: ListChecks, title: 'Multiple Choice', desc: 'Englisch → Deutsch wählen' },
+  { mode: 'reverse', icon: ArrowLeftRight, title: 'Umgekehrt', desc: 'Deutsch → Englisch wählen' },
   { mode: 'type', icon: Keyboard, title: 'Schreiben', desc: 'Wort selbst eintippen' },
   { mode: 'listen', icon: Headphones, title: 'Hören', desc: 'Hören & erkennen' },
 ]
