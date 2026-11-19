@@ -35,10 +35,18 @@ npm run build    # Produktion -> dist/
 npm run preview  # Build lokal ansehen
 ```
 
+## Login & Daten
+
+- **Familien-Passwort** (`APP_PASSWORD`) wird pro Gerät einmal eingegeben; danach merkt sich das Gerät
+  den Zugang 30 Tage über ein signiertes `HttpOnly`-Cookie (`SESSION_SECRET`).
+- Danach **„Wer bist du?“** – Profil wählen oder neu anlegen.
+- Lernstand, eigene Kategorien und Änderungen an Kategorien liegen pro Profil in **Neon (Postgres)**
+  und werden zwischen Geräten synchronisiert; offline wird lokal weitergelernt.
+- Variablen siehe [`.env.example`](.env.example); lokal holen mit `vercel env pull`, starten mit `vercel dev`.
+
 ## Technik
 
-Vite · React · TypeScript · reines CSS · Lucide-Icons. Aktuell keine Datenbank und kein Backend:
-Der Fortschritt liegt pro Gerät/Browser im `localStorage`.
+Vite · React · TypeScript · reines CSS · Lucide-Icons · Vercel Functions (`api/`) · Neon.
 
 ## Deployment
 

@@ -7,6 +7,8 @@ import {
   Keyboard,
   Layers,
   ListChecks,
+  Plus,
+  RotateCcw,
   Shuffle,
   Trash2,
   Volume2,
@@ -34,9 +36,13 @@ function CheckBadge({ on }: { on: boolean }) {
 }
 
 export default function DeckView({ deckId, navigate }: { deckId: string; navigate: (v: View) => void }) {
-  const { allDecks, currentProfile, deleteDeck } = useStore()
+  const { allDecks, currentProfile, deleteDeck, addCard, removeCard, removedCount, restoreRemoved } = useStore()
   const deck = allDecks.find((d) => d.id === deckId)
   const [showCards, setShowCards] = useState(false)
+  const [newEn, setNewEn] = useState('')
+  const [newDe, setNewDe] = useState('')
+  const [newExample, setNewExample] = useState('')
+  const [query, setQuery] = useState('')
   const [selected, setSelected] = useState<StudyMode[]>([])
   const p = currentProfile!
 
@@ -56,6 +62,11 @@ export default function DeckView({ deckId, navigate }: { deckId: string; navigat
   const newCount = deck.cards.filter((c) => isNew(p.progress[c.id])).length
   const mastered = deck.cards.filter((c) => cardState(p.progress[c.id]) === 'mastered').length
   const allSelected = selected.length === ALL_MODES.length
+  const removed = removedCount(deck.id)
+  const q = query.trim().toLowerCase()
+  const visibleCards = q
+    ? deck.cards.filter((c) => c.en.toLowerCase().includes(q) || c.de.toLowerCase().includes(q))
+    : deck.cards
 
   function toggle(mode: StudyMode) {
     setSelected((s) => (s.includes(mode) ? s.filter((m) => m !== mode) : [...s, mode]))
@@ -139,24 +150,71 @@ export default function DeckView({ deckId, navigate }: { deckId: string; navigat
       </button>
 
       <div className="spacer" />
-      <button className="btn ghost block" onClick={() => setShowCards((s) => !s)}>
-        {showCards ? 'Karten ausblenden' : `Alle ${deck.cards.length} Karten ansehen`}
+      <button className="btn ghost block" aria-expanded={showCards} onClick={() => setShowCards((s) => !s)}>
+        {showCards ? 'Karten schließen' : `Karten ansehen & bearbeiten (${deck.cards.length})`}
       </button>
 
       {showCards && (
-        <div className="card-box" style={{ marginTop: 12 }}>
-          {deck.cards.map((c) => (
-            <div className="card-row" key={c.id}>
-              <div>
-                <div className="en">{c.en}</div>
-                <div className="de">{c.de}</div>
+        <>
+          <form
+            className="card-box add-card"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!newEn.trim() || !newDe.trim()) return
+              addCard(deck.id, { en: newEn.trim(), de: newDe.trim(), example: newExample.trim() || undefined })
+              setNewEn('')
+              setNewDe('')
+              setNewExample('')
+            }}
+          >
+            <strong className="add-card-title">Neue Karte</strong>
+            <input aria-label="Englisch" placeholder="Englisch" value={newEn} onChange={(e) => setNewEn(e.target.value)} autoCapitalize="none" />
+            <input aria-label="Deutsch" placeholder="Deutsch" value={newDe} onChange={(e) => setNewDe(e.target.value)} />
+            <input
+              aria-label="Beispielsatz (optional)"
+              placeholder="Beispielsatz (optional)"
+              value={newExample}
+              onChange={(e) => setNewExample(e.target.value)}
+            />
+            <button className="btn sm" type="submit" disabled={!newEn.trim() || !newDe.trim()}>
+              <Plus size={16} aria-hidden /> Karte hinzufügen
+            </button>
+          </form>
+
+          <div className="card-box">
+            <input
+              className="card-search"
+              type="search"
+              aria-label="Karten durchsuchen"
+              placeholder={`${deck.cards.length} Karten durchsuchen`}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {visibleCards.length === 0 && <p className="muted">Keine Karte gefunden.</p>}
+            {visibleCards.map((c) => (
+              <div className="card-row" key={c.id}>
+                <div className="card-text">
+                  <div className="en">{c.en}</div>
+                  <div className="de">{c.de}</div>
+                </div>
+                <div className="card-actions">
+                  <button className="speak-btn small" aria-label={`${c.en} anhören`} onClick={() => speak(c.en)}>
+                    <Volume2 size={18} aria-hidden />
+                  </button>
+                  <button className="icon-btn danger" aria-label={`${c.en} löschen`} onClick={() => removeCard(deck.id, c.id)}>
+                    <Trash2 size={17} aria-hidden />
+                  </button>
+                </div>
               </div>
-              <button className="speak-btn small" aria-label={`${c.en} anhören`} onClick={() => speak(c.en)}>
-                <Volume2 size={18} aria-hidden />
-              </button>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+
+          {removed > 0 && (
+            <button className="btn ghost block" onClick={() => restoreRemoved(deck.id)}>
+              <RotateCcw size={16} aria-hidden /> {removed} gelöschte {removed === 1 ? 'Karte' : 'Karten'} wiederherstellen
+            </button>
+          )}
+        </>
       )}
 
       {deck.custom && (

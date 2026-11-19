@@ -94,10 +94,7 @@ svg { flex-shrink: 0; }
   --c: var(--ink);
   position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   min-height: 132px; padding: 16px 14px 14px; text-align: left; border-radius: 12px;
-  /* feine Linierung wie auf einer Karteikarte – erst unterhalb des Icons */
-  background:
-    linear-gradient(var(--paper), var(--paper)) top / 100% 54px no-repeat,
-    repeating-linear-gradient(to bottom, transparent 0 23px, var(--rule) 23px 24px) var(--paper);
+  background: var(--paper);
   border-top: 4px solid var(--c);
   box-shadow: var(--shadow); transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
@@ -110,8 +107,10 @@ svg { flex-shrink: 0; }
 .cat-title { font-family: var(--display); font-weight: 800; font-size: 15px; line-height: 1.2; letter-spacing: -0.01em; }
 .cat-meta { font-size: 12px; color: var(--ink-soft); }
 .cat-meta em { font-style: normal; color: var(--warn); font-weight: 600; }
-.cat-progress { margin-top: auto; width: 100%; height: 4px; border-radius: 999px; background: var(--rule); overflow: hidden; }
-.cat-progress > span { display: block; height: 100%; background: var(--c); }
+.cat-progress { margin-top: auto; padding-top: 8px; width: 100%; display: flex; align-items: center; gap: 8px; }
+.cat-progress-bar { flex: 1; height: 4px; border-radius: 999px; background: var(--rule); overflow: hidden; }
+.cat-progress-bar > span { display: block; height: 100%; background: var(--c); }
+.cat-progress small { font-size: 11px; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .cat-card.add {
   align-items: center; justify-content: center; gap: 8px; color: var(--ink-soft);
   background: transparent; background-image: none; border: 2px dashed #c3cbd6; box-shadow: none;
@@ -202,10 +201,7 @@ svg { flex-shrink: 0; }
 .flashcard-inner.flipped { transform: rotateY(180deg); }
 /* Lernkarte = Karteikarte: rote Kopflinie, blaue Linierung */
 .face, .prompt-card {
-  background:
-    linear-gradient(var(--red), var(--red)) 0 46px / 100% 2px no-repeat,
-    linear-gradient(var(--paper), var(--paper)) top / 100% 48px no-repeat,
-    repeating-linear-gradient(to bottom, transparent 0 31px, var(--rule) 31px 32px) var(--paper);
+  background: linear-gradient(var(--red), var(--red)) 0 46px / 100% 2px no-repeat var(--paper);
   border-radius: 14px; box-shadow: var(--shadow-lg);
 }
 .face {
@@ -303,3 +299,25 @@ svg { flex-shrink: 0; }
 .splash svg { animation: splash-pulse 1.2s ease-in-out infinite; }
 @keyframes splash-pulse { 50% { opacity: 0.45; transform: scale(0.94); } }
 .sync-hint { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--warn); }
+
+/* ---------- Karten bearbeiten ---------- */
+.add-card { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.add-card-title { font-size: 14px; }
+.add-card input, .card-search {
+  width: 100%; padding: 11px 12px; border-radius: 10px; border: 2px solid var(--line); background: var(--paper); outline: none;
+}
+.add-card input:focus, .card-search:focus { border-color: var(--accent); }
+.add-card .btn { align-self: flex-start; }
+.card-search { margin-bottom: 4px; }
+.card-text { min-width: 0; }
+.card-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.card-actions .icon-btn { width: 38px; height: 38px; }
+
+/* ---------- Passwort & Profil anlegen ---------- */
+.auth-card { width: 100%; background: var(--paper); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 12px; }
+.auth-card .field { margin: 0; display: block; }
+.field-label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--ink-soft); }
+.auth-card input { width: 100%; padding: 13px 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--paper); outline: none; }
+.auth-card input:focus { border-color: var(--accent); }
+.auth-card .picker-title { margin: 0 0 4px; }
+.form-error { margin: 0; font-size: 13px; font-weight: 600; color: var(--bad); }

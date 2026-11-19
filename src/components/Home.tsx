@@ -9,7 +9,7 @@ import type { View } from '../nav'
 
 const CUSTOM_COLOR = '#16202f'
 
-export default function Home({ navigate }: { navigate: (v: View) => void }) {
+export default function Home({ navigate, onSwitchProfile }: { navigate: (v: View) => void; onSwitchProfile: () => void }) {
   const { currentProfile, allDecks } = useStore()
   const p = currentProfile!
 
@@ -41,7 +41,7 @@ export default function Home({ navigate }: { navigate: (v: View) => void }) {
 
   return (
     <div className="page">
-      <AppHeader />
+      <AppHeader onSwitchProfile={onSwitchProfile} />
 
       <section className="greet" aria-label="Dein Stand">
         <h1 className="greet-title">Hallo, {p.name}</h1>
@@ -111,9 +111,14 @@ export default function Home({ navigate }: { navigate: (v: View) => void }) {
                 {s.total} Karten
                 {s.due > 0 && <em> · {s.due} fällig</em>}
               </span>
-              <span className="cat-progress" aria-label={`${pct} % begonnen`}>
-                <span style={{ width: `${pct}%` }} />
-              </span>
+              {s.started > 0 && (
+                <span className="cat-progress" aria-label={`${pct} % begonnen`}>
+                  <span className="cat-progress-bar">
+                    <span style={{ width: `${Math.max(pct, 2)}%` }} />
+                  </span>
+                  <small>{pct} %</small>
+                </span>
+              )}
             </button>
           )
         })}

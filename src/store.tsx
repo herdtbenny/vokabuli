@@ -15,6 +15,13 @@ export interface UserDoc {
   profile: Profile
   customDecks: Deck[]
   settings: Settings
+  // Persönliche Änderungen an eingebauten Kategorien (die Grunddaten bleiben für alle gleich)
+  deckEdits?: Record<string, DeckEdit>
+}
+
+export interface DeckEdit {
+  added: Card[] // selbst hinzugefügte Karten
+  removed: string[] // IDs ausgeblendeter eingebauter Karten
 }
 
 export type SyncStatus = 'loading' | 'synced' | 'saving' | 'offline'
@@ -78,7 +85,15 @@ function normalize(doc: UserDoc, userId: string, name: string): UserDoc {
     },
     customDecks: (doc.customDecks ?? []).map(migrateDeck),
     settings: { ...defaultSettings, ...(doc.settings ?? {}) },
+    deckEdits: doc.deckEdits ?? {},
   }
+}
+
+// Eingebaute Kategorie + persönliche Änderungen = was dieses Konto sieht
+function applyEdit(deck: Deck, edit: DeckEdit | undefined): Deck {
+  if (!edit || (!edit.added.length && !edit.removed.length)) return deck
+  const removed = new Set(edit.removed)
+  return { ...deck, cards: [...deck.cards.filter((c) => !removed.has(c.id)), ...edit.added] }
 }
 
 interface Cache {
@@ -141,7 +156,10 @@ interface StoreValue {
   updateProfile: (patch: Partial<Profile>) => void
   recordAnswer: (cardId: string, rating: Rating) => void
   createDeck: (title: string, icon: string, description: string, categoryId: string, cards: Omit<Card, 'id'>[]) => string
-  addCardToDeck: (deckId: string, card: Omit<Card, 'id'>) => void
+  addCard: (deckId: string, card: Omit<Card, 'id'>) => void
+  removeCard: (deckId: string, cardId: string) => void
+  removedCount: (deckId: string) => number
+  restoreRemoved: (deckId: string) => void
   deleteDeck: (deckId: string) => void
   updateSettings: (patch: Partial<Settings>) => void
 }
@@ -149,14 +167,23 @@ interface StoreValue {
 const Ctx = createContext<StoreValue | null>(null)
 
 interface ProviderProps {
-  userId: string
+  userId: string // Profil-ID
   displayName: string
-  getToken: () => Promise<string | null>
+  /** Server sagt: Gerät nicht (mehr) angemeldet oder Profil existiert nicht mehr */
+  onAccessLost: (reason: 'unauthorized' | 'missing') => void
   loading: ReactNode
   children: ReactNode
 }
 
-export function StoreProvider({ userId, displayName, getToken, loading, children }: ProviderProps) {
+class HttpError extends Error {
+  constructor(public status: number) {
+    super(`HTTP ${status}`)
+  }
+}
+
+const isEmpty = (d: UserDoc) => d.profile.totalReviews === 0 && Object.keys(d.profile.progress).length === 0
+
+export function StoreProvider({ userId, displayName, onAccessLost, loading, children }: ProviderProps) {
   const [doc, setDoc] = useState<UserDoc | null>(() => {
     const cache = readCache(userId)
     return cache ? normalize(cache.doc, userId, displayName) : null
@@ -164,29 +191,29 @@ export function StoreProvider({ userId, displayName, getToken, loading, children
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('loading')
 
   const loaded = useRef(false) // erst nach dem Abgleich mit der Datenbank speichern
-  const tokenRef = useRef<string | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const latest = useRef<UserDoc | null>(doc)
   latest.current = doc
+  const url = `/api/state?profile=${encodeURIComponent(userId)}`
 
-  async function authHeaders(): Promise<Record<string, string>> {
-    const token = await getToken()
-    tokenRef.current = token
-    return token ? { authorization: `Bearer ${token}` } : {}
-  }
-
+  // Das Geräte-Cookie (Familien-Passwort) wird vom Browser automatisch mitgeschickt.
   async function push(d: UserDoc, keepalive = false) {
-    const headers = keepalive && tokenRef.current
-      ? { authorization: `Bearer ${tokenRef.current}` }
-      : await authHeaders()
-    const res = await fetch('/api/state', {
+    const res = await fetch(url, {
       method: 'PUT',
-      headers: { 'content-type': 'application/json', ...headers },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ data: d }),
       keepalive,
     })
-    if (!res.ok) throw new Error(`Speichern fehlgeschlagen (${res.status})`)
+    if (!res.ok) throw new HttpError(res.status)
     writeCache(userId, { doc: d, dirty: false })
+  }
+
+  function handleHttpError(e: unknown): boolean {
+    if (e instanceof HttpError && (e.status === 401 || e.status === 404)) {
+      onAccessLost(e.status === 401 ? 'unauthorized' : 'missing')
+      return true
+    }
+    return false
   }
 
   // 1) Beim Start: Datenbank-Stand holen und mit dem Geräte-Cache abgleichen
@@ -195,23 +222,23 @@ export function StoreProvider({ userId, displayName, getToken, loading, children
     ;(async () => {
       const cache = readCache(userId)
       try {
-        const res = await fetch('/api/state', { headers: await authHeaders() })
-        if (!res.ok) throw new Error(String(res.status))
-        const { data } = (await res.json()) as { data: UserDoc | null }
+        const res = await fetch(url)
+        if (!res.ok) throw new HttpError(res.status)
+        const { data } = (await res.json()) as { data: UserDoc }
         if (cancelled) return
 
-        let next: UserDoc
+        let next = normalize(data, userId, displayName)
         let needsPush = false
         if (cache?.dirty) {
           next = normalize(cache.doc, userId, displayName) // ungespeicherte Änderungen dieses Geräts gewinnen
           needsPush = true
-        } else if (data) {
-          next = normalize(data, userId, displayName)
-        } else {
-          // Neues Konto: lokalen Fortschritt übernehmen, sonst frisch starten
-          const start = cache?.doc ?? takeLegacyProfile(displayName)
-          next = start ? normalize(start, userId, displayName) : normalize({ profile: freshProfile(userId, displayName), customDecks: [], settings: defaultSettings }, userId, displayName)
-          needsPush = true
+        } else if (isEmpty(next)) {
+          // Neues Profil: Fortschritt aus der Zeit vor dem Login übernehmen (gleicher Name)
+          const legacy = takeLegacyProfile(displayName)
+          if (legacy) {
+            next = normalize({ ...legacy, profile: { ...legacy.profile, color: next.profile.color } }, userId, displayName)
+            needsPush = true
+          }
         }
         setDoc(next)
         writeCache(userId, { doc: next, dirty: needsPush })
@@ -221,12 +248,11 @@ export function StoreProvider({ userId, displayName, getToken, loading, children
           await push(next)
         }
         if (!cancelled) setSyncStatus('synced')
-      } catch {
-        if (cancelled) return
-        // Offline / Server nicht erreichbar: mit dem Cache (oder frisch) weiterlernen
-        const fallback = cache?.doc ?? takeLegacyProfile(displayName)
-        const next = fallback
-          ? normalize(fallback, userId, displayName)
+      } catch (e) {
+        if (cancelled || handleHttpError(e)) return
+        // Offline / Server nicht erreichbar: mit dem Cache weiterlernen
+        const next = cache?.doc
+          ? normalize(cache.doc, userId, displayName)
           : normalize({ profile: freshProfile(userId, displayName), customDecks: [], settings: defaultSettings }, userId, displayName)
         setDoc(next)
         loaded.current = true
@@ -249,8 +275,8 @@ export function StoreProvider({ userId, displayName, getToken, loading, children
       try {
         await push(doc)
         setSyncStatus('synced')
-      } catch {
-        setSyncStatus('offline')
+      } catch (e) {
+        if (!handleHttpError(e)) setSyncStatus('offline')
       }
     }, SAVE_DELAY_MS)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -274,7 +300,11 @@ export function StoreProvider({ userId, displayName, getToken, loading, children
   }, [doc?.settings.sound])
 
   const customDecks = doc?.customDecks
-  const allDecks = useMemo(() => [...builtinDecks, ...(customDecks ?? [])], [customDecks])
+  const deckEdits = doc?.deckEdits
+  const allDecks = useMemo(
+    () => [...builtinDecks.map((d) => applyEdit(d, deckEdits?.[d.id])), ...(customDecks ?? [])],
+    [customDecks, deckEdits],
+  )
 
   if (!doc) return <>{loading}</>
 
@@ -325,13 +355,49 @@ export function StoreProvider({ userId, displayName, getToken, loading, children
       return id
     },
 
-    addCardToDeck(deckId, card) {
-      update((d) => ({
-        ...d,
-        customDecks: d.customDecks.map((x) =>
-          x.id === deckId ? { ...x, cards: [...x.cards, { ...card, id: `${deckId}-${Date.now()}` }] } : x,
-        ),
-      }))
+    addCard(deckId, card) {
+      const newCard: Card = { ...card, id: `${deckId}-u-${uid()}` }
+      update((d) => {
+        if (d.customDecks.some((x) => x.id === deckId)) {
+          return {
+            ...d,
+            customDecks: d.customDecks.map((x) => (x.id === deckId ? { ...x, cards: [...x.cards, newCard] } : x)),
+          }
+        }
+        const edit = d.deckEdits?.[deckId] ?? { added: [], removed: [] }
+        return { ...d, deckEdits: { ...d.deckEdits, [deckId]: { ...edit, added: [...edit.added, newCard] } } }
+      })
+    },
+
+    removeCard(deckId, cardId) {
+      update((d) => {
+        if (d.customDecks.some((x) => x.id === deckId)) {
+          return {
+            ...d,
+            customDecks: d.customDecks.map((x) =>
+              x.id === deckId ? { ...x, cards: x.cards.filter((c) => c.id !== cardId) } : x,
+            ),
+          }
+        }
+        const edit = d.deckEdits?.[deckId] ?? { added: [], removed: [] }
+        const isOwn = edit.added.some((c) => c.id === cardId)
+        const nextEdit: DeckEdit = isOwn
+          ? { ...edit, added: edit.added.filter((c) => c.id !== cardId) } // eigene Karte: wirklich löschen
+          : { ...edit, removed: [...edit.removed, cardId] } // eingebaute Karte: nur ausblenden
+        return { ...d, deckEdits: { ...d.deckEdits, [deckId]: nextEdit } }
+      })
+    },
+
+    removedCount(deckId) {
+      return doc.deckEdits?.[deckId]?.removed.length ?? 0
+    },
+
+    restoreRemoved(deckId) {
+      update((d) => {
+        const edit = d.deckEdits?.[deckId]
+        if (!edit) return d
+        return { ...d, deckEdits: { ...d.deckEdits, [deckId]: { ...edit, removed: [] } } }
+      })
     },
 
     deleteDeck(deckId) {
