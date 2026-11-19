@@ -1,5 +1,5 @@
 // POST /api/login – Familien-Passwort prüfen und das Gerät 30 Tage lang merken.
-import { AUTH_MAX_AGE, authCookie, json, passwordMatches, signAuth } from './_lib/session'
+import { AUTH_MAX_AGE, authCookie, json, passwordMatches, signAuth } from './_lib/session.js'
 
 export async function POST(request: Request): Promise<Response> {
   let password = ''

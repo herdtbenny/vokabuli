@@ -1,6 +1,6 @@
 // GET /api/session – kennt dieses Gerät das Passwort schon?
 // DELETE /api/session – Gerät abmelden (Passwort wird beim nächsten Mal wieder abgefragt).
-import { authCookie, isAuthed, json } from './_lib/session'
+import { authCookie, isAuthed, json } from './_lib/session.js'
 
 export async function GET(request: Request): Promise<Response> {
   return json({ authed: await isAuthed(request) })

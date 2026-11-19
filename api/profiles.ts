@@ -1,6 +1,6 @@
 // GET /api/profiles – alle Profile für "Wer bist du?"
 // POST /api/profiles – neues Profil anlegen ({ name, color })
-import { db, isAuthed, json, unauthorized } from './_lib/session'
+import { db, isAuthed, json, unauthorized } from './_lib/session.js'
 
 const COLORS = ['#2456d6', '#e5484d', '#2f9e44', '#d9480f', '#b7791f', '#0b8aa8', '#475569', '#c2255c']
 

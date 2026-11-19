@@ -1,7 +1,7 @@
 // GET /api/state?profile=ID – Lernstand eines Profils lesen
 // PUT /api/state?profile=ID – Lernstand speichern
 // Zugang nur mit gültigem Geräte-Cookie (Familien-Passwort), wie bei Foodie.
-import { db, isAuthed, json, unauthorized } from './_lib/session'
+import { db, isAuthed, json, unauthorized } from './_lib/session.js'
 
 const MAX_BYTES = 2_000_000 // ein Lernstand mit allen ~2.500 Karten liegt weit darunter
 
