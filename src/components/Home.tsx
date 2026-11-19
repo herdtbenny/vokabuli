@@ -1,17 +1,16 @@
 import { useMemo } from 'react'
+import { Flame, Plus, Users, Volume2, VolumeX, Zap } from 'lucide-react'
 import { useStore } from '../store'
 import { categories } from '../data/decks'
 import { cardState, isDueReview } from '../srs'
-import { levelProgress, levelTitle } from '../gamification'
 import { initial } from '../nav'
+import { CategoryIcon } from '../icons'
 import type { View } from '../nav'
 import type { Deck } from '../types'
 
 export default function Home({ navigate }: { navigate: (v: View) => void }) {
-  const { currentProfile, allDecks } = useStore()
+  const { currentProfile, allDecks, settings, updateSettings, logout } = useStore()
   const p = currentProfile!
-
-  const lp = levelProgress(p.xp)
 
   function deckStats(deck: Deck) {
     let due = 0
@@ -31,46 +30,40 @@ export default function Home({ navigate }: { navigate: (v: View) => void }) {
     () => allDecks.reduce((n, d) => n + d.cards.filter((c) => isDueReview(p.progress[c.id])).length, 0),
     [allDecks, p.progress],
   )
-
-  const goalPct = Math.min(100, Math.round((p.cardsStudiedToday / p.dailyGoal) * 100))
+  const totalLearned = useMemo(
+    () => allDecks.reduce((n, d) => n + d.cards.filter((c) => (p.progress[c.id]?.seen ?? 0) > 0).length, 0),
+    [allDecks, p.progress],
+  )
 
   return (
     <div className="page">
       <div className="hero">
         <div className="hero-top">
-          <div className="hero-avatar" style={{ background: 'rgba(255,255,255,0.22)' }}>
-            {initial(p.name)}
-          </div>
+          <div className="hero-avatar">{initial(p.name)}</div>
           <div>
             <div className="hero-name">Hi, {p.name}!</div>
-            <div className="hero-title">
-              Level {lp.level} · {levelTitle(lp.level)}
-            </div>
+            <div className="hero-title">{totalLearned} Karten gelernt</div>
           </div>
-          <div className="hero-streak">
-            🔥 {p.streak}
+          <div className="hero-streak" title="Tage-Serie">
+            <span className="inline-icon">
+              <Flame size={18} aria-hidden /> {p.streak}
+            </span>
             <small>Tage-Serie</small>
           </div>
         </div>
 
-        <div className="levelbar">
-          <div className="levelbar-row">
-            <span>{lp.current} XP</span>
-            <span>noch {lp.needed - lp.current} bis Level {lp.level + 1}</span>
-          </div>
-          <div className="bar">
-            <span style={{ width: lp.pct + '%' }} />
-          </div>
-        </div>
-
-        <div className="goal-row">
-          🎯
-          <div className="bar">
-            <span style={{ width: goalPct + '%', background: goalPct >= 100 ? '#a7f3d0' : '#fff' }} />
-          </div>
-          <span>
-            {p.cardsStudiedToday}/{p.dailyGoal}
-          </span>
+        <div className="hero-actions">
+          <button
+            className="hero-action"
+            aria-pressed={settings.sound}
+            onClick={() => updateSettings({ sound: !settings.sound })}
+          >
+            {settings.sound ? <Volume2 size={18} aria-hidden /> : <VolumeX size={18} aria-hidden />}
+            {settings.sound ? 'Ton an' : 'Ton aus'}
+          </button>
+          <button className="hero-action" onClick={logout}>
+            <Users size={18} aria-hidden /> Profil wechseln
+          </button>
         </div>
       </div>
 
@@ -81,7 +74,7 @@ export default function Home({ navigate }: { navigate: (v: View) => void }) {
             className="btn block"
             onClick={() => navigate({ name: 'study', deckId: '__due__', modes: ['flip'], quick: true })}
           >
-            ⚡ Schnell-Review · {totalDue} fällige Karten
+            <Zap size={18} aria-hidden /> Schnell-Review · {totalDue} fällige Karten
           </button>
         </>
       )}
@@ -94,7 +87,7 @@ export default function Home({ navigate }: { navigate: (v: View) => void }) {
           return (
             <button key={d.id} className="deck-card" onClick={() => navigate({ name: 'deck', deckId: d.id })}>
               <div className="deck-icon" style={{ background: color + '22', color }}>
-                {d.emoji}
+                <CategoryIcon name={d.icon} size={26} />
               </div>
               <div className="deck-info">
                 <h3>{d.title}</h3>
@@ -103,7 +96,7 @@ export default function Home({ navigate }: { navigate: (v: View) => void }) {
                 </p>
                 <div className="deck-meta">
                   {s.due > 0 && <span className="pill due">{s.due} fällig</span>}
-                  {s.mastered > 0 && <span className="pill master">{s.mastered} ✓</span>}
+                  {s.mastered > 0 && <span className="pill master">{s.mastered} gemeistert</span>}
                   {s.learned === 0 && <span className="pill">neu</span>}
                   {d.custom && <span className="pill">eigene</span>}
                 </div>
@@ -118,7 +111,7 @@ export default function Home({ navigate }: { navigate: (v: View) => void }) {
 
       <div className="spacer" />
       <button className="btn outline block" onClick={() => navigate({ name: 'create' })}>
-        ＋ Eigene Kategorie erstellen
+        <Plus size={18} aria-hidden /> Eigene Kategorie erstellen
       </button>
     </div>
   )

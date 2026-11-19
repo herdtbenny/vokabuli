@@ -1,19 +1,17 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Check, CircleCheck, Volume2, X } from 'lucide-react'
 import { useStore } from '../store'
 import { isDueReview, isNew, nextReviewLabel } from '../srs'
 import { speak } from '../tts'
 import { sound } from '../sound'
-import { levelTitle, getAchievement } from '../gamification'
 import type { Card, Rating, StudyMode } from '../types'
-import type { ToastItem, View } from '../nav'
+import type { View } from '../nav'
 
 interface Props {
   deckId: string
   modes: StudyMode[]
   quick?: boolean
   navigate: (v: View) => void
-  pushToast: (t: Omit<ToastItem, 'id'>) => void
-  fireConfetti: () => void
 }
 
 const SESSION_MAX = 20
@@ -43,11 +41,26 @@ const MODE_LABEL: Record<StudyMode, string> = {
   listen: 'Hören',
 }
 
-export default function StudySession({ deckId, modes, quick, navigate, pushToast, fireConfetti }: Props) {
+function SpeakButton({ text, large }: { text: string; large?: boolean }) {
+  return (
+    <button
+      className={'speak-btn' + (large ? ' large' : '')}
+      aria-label="Aussprache anhören"
+      onClick={(e) => {
+        e.stopPropagation()
+        speak(text)
+      }}
+    >
+      <Volume2 size={large ? 36 : 24} aria-hidden />
+    </button>
+  )
+}
+
+export default function StudySession({ deckId, modes, quick, navigate }: Props) {
   const { allDecks, currentProfile, recordAnswer } = useStore()
   const p = currentProfile!
 
-  // Pool, Distraktoren und Modus pro Karte einmalig beim Start festlegen
+  // Pool, Distraktoren und Lernart pro Karte einmalig beim Start festlegen
   const { pool, distractors, deckTitle, cardModes } = useMemo(() => {
     let source: Card[] = []
     let title = 'Lernen'
@@ -83,13 +96,12 @@ export default function StudySession({ deckId, modes, quick, navigate, pushToast
   const [typed, setTyped] = useState('')
   const [typeResult, setTypeResult] = useState<'ok' | 'no' | null>(null)
   const [correctCount, setCorrectCount] = useState(0)
-  const perfectRef = useRef(0)
   const [done, setDone] = useState(pool.length === 0)
 
   const card = pool[index]
   const mode: StudyMode = cardModes[index] ?? 'flip'
 
-  // Optionen für Choice / Listen
+  // Antwortoptionen für Multiple Choice / Hören
   const options = useMemo(() => {
     if (!card) return []
     const wrong = shuffle(distractors.filter((c) => c.id !== card.id && c.de !== card.de))
@@ -105,13 +117,15 @@ export default function StudySession({ deckId, modes, quick, navigate, pushToast
     return (
       <div className="study-wrap">
         <div className="session-done">
-          <div className="big-emoji">{pct >= 80 ? '🎉' : pct >= 50 ? '👍' : '💪'}</div>
-          <h2>Session geschafft!</h2>
+          <div className="big-icon">
+            <CircleCheck size={56} strokeWidth={1.75} aria-hidden />
+          </div>
+          <h2>Session beendet</h2>
           {total === 0 ? (
-            <p className="muted">Hier ist gerade nichts fällig. Komm später wieder – oder lern ein anderes Deck.</p>
+            <p className="muted">Hier ist gerade nichts fällig. Komm später wieder – oder lern eine andere Kategorie.</p>
           ) : (
             <p className="muted">
-              {correctCount} von {total} richtig ({pct}%)
+              {correctCount} von {total} richtig ({pct} %)
             </p>
           )}
           <button className="btn block" onClick={() => navigate(quick ? { name: 'home' } : { name: 'deck', deckId })}>
@@ -126,38 +140,13 @@ export default function StudySession({ deckId, modes, quick, navigate, pushToast
   }
 
   function handleResult(rating: Rating) {
-    const correct = rating !== 'again'
-    if (correct) {
+    if (rating !== 'again') {
       setCorrectCount((c) => c + 1)
-      perfectRef.current += 1
       sound.correct()
     } else {
-      perfectRef.current = 0
       sound.wrong()
     }
-    const res = recordAnswer(card.id, rating, perfectRef.current)
-
-    // Feedback: Level-up & Achievements
-    let celebrate = false
-    if (res.levelUp) {
-      celebrate = true
-      sound.levelUp()
-      pushToast({ emoji: '⭐', title: `Level ${res.toLevel}!`, subtitle: levelTitle(res.toLevel) })
-    }
-    for (const id of res.newAchievements) {
-      const a = getAchievement(id)
-      if (a) {
-        celebrate = true
-        sound.achievement()
-        pushToast({ emoji: a.emoji, title: a.title, subtitle: a.description })
-      }
-    }
-    if (res.reachedGoal) {
-      celebrate = true
-      pushToast({ emoji: '🎯', title: 'Tagesziel erreicht!', subtitle: 'Stark – komm morgen wieder für deine Serie.' })
-    }
-    if (celebrate) fireConfetti()
-
+    recordAnswer(card.id, rating)
     next()
   }
 
@@ -170,13 +159,41 @@ export default function StudySession({ deckId, modes, quick, navigate, pushToast
     else setIndex((i) => i + 1)
   }
 
+  function renderChoices(delay: number) {
+    return (
+      <div className="choices">
+        {options.map((opt) => {
+          let cls = 'choice'
+          if (picked) {
+            if (opt === card.de) cls += ' correct'
+            else if (opt === picked) cls += ' wrong'
+            else cls += ' dim'
+          }
+          return (
+            <button
+              key={opt}
+              className={cls}
+              disabled={!!picked}
+              onClick={() => {
+                setPicked(opt)
+                setTimeout(() => handleResult(opt === card.de ? 'good' : 'again'), delay)
+              }}
+            >
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
   const progressPct = Math.round((index / pool.length) * 100)
 
   return (
     <div className="study-wrap">
       <div className="study-head">
-        <button className="close" onClick={() => navigate({ name: 'home' })}>
-          ✕
+        <button className="close" aria-label="Session beenden" onClick={() => navigate({ name: 'home' })}>
+          <X size={20} aria-hidden />
         </button>
         <div className="study-progress">
           <span style={{ width: progressPct + '%' }} />
@@ -190,7 +207,7 @@ export default function StudySession({ deckId, modes, quick, navigate, pushToast
         {mixed && <> · {MODE_LABEL[mode]}</>}
       </div>
 
-      {/* ---------- FLIP ---------- */}
+      {/* ---------- Karteikarte ---------- */}
       {mode === 'flip' && (
         <>
           <div className="flashcard" onClick={() => !flipped && setFlipped(true)}>
@@ -198,31 +215,21 @@ export default function StudySession({ deckId, modes, quick, navigate, pushToast
               <div className="face front">
                 {card.note && <span className="note">{card.note}</span>}
                 <div className="word">{card.en}</div>
-                <button
-                  className="speak-btn"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    speak(card.en)
-                  }}
-                >
-                  🔊
-                </button>
+                <SpeakButton text={card.en} />
                 <div className="hint">Tippen zum Umdrehen</div>
               </div>
               <div className="face back">
                 <div className="word" style={{ fontSize: 26 }}>
                   {card.de}
                 </div>
-                {card.example && <div className="example">„{card.example}"</div>}
+                {card.example && <div className="example">„{card.example}“</div>}
                 {card.exampleDe && <div className="example-de">{card.exampleDe}</div>}
               </div>
             </div>
           </div>
           {flipped ? (
             <>
-              <p className="rate-explain">
-                Wie gut kanntest du die Karte? Danach richtet sich, wann sie wiederkommt.
-              </p>
+              <p className="rate-explain">Wie gut kanntest du die Karte? Danach richtet sich, wann sie wiederkommt.</p>
               <div className="rate-row">
                 <button className="rate-btn rate-again" onClick={() => handleResult('again')}>
                   Nochmal<small>in {nextReviewLabel(p.progress[card.id], 'again')}</small>
@@ -246,79 +253,31 @@ export default function StudySession({ deckId, modes, quick, navigate, pushToast
         </>
       )}
 
-      {/* ---------- CHOICE ---------- */}
+      {/* ---------- Multiple Choice ---------- */}
       {mode === 'choice' && (
         <>
           <div className="prompt-card" style={{ margin: '16px 0' }}>
             {card.note && <span className="note">{card.note}</span>}
             <div className="big">{card.en}</div>
-            <button className="speak-btn" onClick={() => speak(card.en)}>
-              🔊
-            </button>
+            <SpeakButton text={card.en} />
             <div className="muted">Was bedeutet das?</div>
           </div>
-          <div className="choices">
-            {options.map((opt) => {
-              let cls = 'choice'
-              if (picked) {
-                if (opt === card.de) cls += ' correct'
-                else if (opt === picked) cls += ' wrong'
-                else cls += ' dim'
-              }
-              return (
-                <button
-                  key={opt}
-                  className={cls}
-                  disabled={!!picked}
-                  onClick={() => {
-                    setPicked(opt)
-                    setTimeout(() => handleResult(opt === card.de ? 'good' : 'again'), 850)
-                  }}
-                >
-                  {opt}
-                </button>
-              )
-            })}
-          </div>
+          {renderChoices(850)}
         </>
       )}
 
-      {/* ---------- LISTEN ---------- */}
+      {/* ---------- Hören ---------- */}
       {mode === 'listen' && (
         <>
           <div className="prompt-card" style={{ margin: '16px 0' }}>
-            <button className="speak-btn" style={{ width: 80, height: 80, fontSize: 40 }} onClick={() => speak(card.en)}>
-              🔊
-            </button>
-            <div className="muted">{picked ? card.en : 'Tippe auf den Lautsprecher & wähle die Bedeutung'}</div>
+            <SpeakButton text={card.en} large />
+            <div className="muted">{picked ? card.en : 'Tippe auf den Lautsprecher und wähle die Bedeutung'}</div>
           </div>
-          <div className="choices">
-            {options.map((opt) => {
-              let cls = 'choice'
-              if (picked) {
-                if (opt === card.de) cls += ' correct'
-                else if (opt === picked) cls += ' wrong'
-                else cls += ' dim'
-              }
-              return (
-                <button
-                  key={opt}
-                  className={cls}
-                  disabled={!!picked}
-                  onClick={() => {
-                    setPicked(opt)
-                    setTimeout(() => handleResult(opt === card.de ? 'good' : 'again'), 950)
-                  }}
-                >
-                  {opt}
-                </button>
-              )
-            })}
-          </div>
+          {renderChoices(950)}
         </>
       )}
 
-      {/* ---------- TYPE ---------- */}
+      {/* ---------- Schreiben ---------- */}
       {mode === 'type' && (
         <>
           <div className="prompt-card" style={{ margin: '16px 0' }}>
@@ -332,8 +291,7 @@ export default function StudySession({ deckId, modes, quick, navigate, pushToast
               onSubmit={(e) => {
                 e.preventDefault()
                 if (!typed.trim()) return
-                const ok = clean(typed) === clean(card.en)
-                setTypeResult(ok ? 'ok' : 'no')
+                setTypeResult(clean(typed) === clean(card.en) ? 'ok' : 'no')
                 speak(card.en)
               }}
             >
@@ -354,7 +312,15 @@ export default function StudySession({ deckId, modes, quick, navigate, pushToast
           ) : (
             <>
               <div className={'type-feedback ' + (typeResult === 'ok' ? 'ok' : 'no')}>
-                {typeResult === 'ok' ? '✓ Richtig!' : `✗ Richtig wäre: ${card.en}`}
+                {typeResult === 'ok' ? (
+                  <>
+                    <Check size={18} aria-hidden /> Richtig!
+                  </>
+                ) : (
+                  <>
+                    <X size={18} aria-hidden /> Richtig wäre: {card.en}
+                  </>
+                )}
               </div>
               <div className="spacer" />
               <button className="btn block" onClick={() => handleResult(typeResult === 'ok' ? 'good' : 'again')}>

@@ -1,11 +1,25 @@
 import { useState } from 'react'
+import { ArrowRight, BookOpen, Plus, Trash2 } from 'lucide-react'
 import { useStore } from '../store'
-import { levelFromXp, levelTitle } from '../gamification'
 import { PROFILE_COLORS, initial } from '../nav'
-import { APP_NAME, APP_MARK } from '../brand'
+import { APP_NAME } from '../brand'
+import type { Deck, Profile } from '../types'
+
+// Nur Karten zählen, die es noch gibt (z.B. nicht die einer gelöschten Kategorie)
+function learnedCount(p: Profile, decks: Deck[]): number {
+  return decks.reduce((n, d) => n + d.cards.filter((c) => (p.progress[c.id]?.seen ?? 0) > 0).length, 0)
+}
+
+function BrandMark() {
+  return (
+    <div className="mark" aria-hidden>
+      <BookOpen size={34} strokeWidth={2} />
+    </div>
+  )
+}
 
 export default function ProfilePicker() {
-  const { profiles, selectProfile, createProfile, deleteProfile } = useStore()
+  const { profiles, allDecks, selectProfile, createProfile, deleteProfile } = useStore()
   const [creating, setCreating] = useState(profiles.length === 0)
   const [name, setName] = useState('')
   const [color, setColor] = useState(PROFILE_COLORS[0])
@@ -15,7 +29,7 @@ export default function ProfilePicker() {
     return (
       <div className="picker">
         <div className="brand-logo">
-          <div className="mark">{APP_MARK}</div>
+          <BrandMark />
           <h1>Wer lernt?</h1>
           <p>Leg ein Profil an – ganz ohne Anmeldung.</p>
         </div>
@@ -33,6 +47,7 @@ export default function ProfilePicker() {
                   key={c}
                   className={'color-dot' + (c === color ? ' active' : '')}
                   style={{ background: c }}
+                  aria-label={'Farbe ' + c}
                   onClick={() => setColor(c)}
                 />
               ))}
@@ -40,14 +55,8 @@ export default function ProfilePicker() {
           </div>
         </div>
 
-        <button
-          className="btn block"
-          disabled={!name.trim()}
-          onClick={() => {
-            createProfile(name, initial(name), color)
-          }}
-        >
-          Los geht's 🚀
+        <button className="btn block" disabled={!name.trim()} onClick={() => createProfile(name, color)}>
+          Los geht's <ArrowRight size={18} aria-hidden />
         </button>
         {profiles.length > 0 && (
           <button className="btn ghost block" onClick={() => setCreating(false)}>
@@ -61,7 +70,7 @@ export default function ProfilePicker() {
   return (
     <div className="picker">
       <div className="brand-logo">
-        <div className="mark">{APP_MARK}</div>
+        <BrandMark />
         <h1>{APP_NAME}</h1>
         <p>Wer lernt heute Englisch?</p>
       </div>
@@ -78,12 +87,20 @@ export default function ProfilePicker() {
             </div>
             <div className="pname">{p.name}</div>
             <div className="plevel">
-              {manage ? '🗑️ Löschen' : `Level ${levelFromXp(p.xp)} · ${levelTitle(levelFromXp(p.xp))}`}
+              {manage ? (
+                <span className="inline-icon danger">
+                  <Trash2 size={14} aria-hidden /> Löschen
+                </span>
+              ) : (
+                `${learnedCount(p, allDecks)} Karten gelernt`
+              )}
             </div>
           </button>
         ))}
         <button className="profile-tile add" onClick={() => setCreating(true)}>
-          <div className="profile-avatar">＋</div>
+          <div className="profile-avatar">
+            <Plus size={32} aria-hidden />
+          </div>
           <div className="pname">Neues Profil</div>
           <div className="plevel">hinzufügen</div>
         </button>

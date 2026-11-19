@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { ArrowLeft, Plus, X } from 'lucide-react'
 import { useStore } from '../store'
-import { DECK_EMOJIS } from '../nav'
+import { CategoryIcon, DEFAULT_ICON, PICKABLE_ICONS } from '../icons'
 import type { View } from '../nav'
 import type { Card } from '../types'
 
@@ -10,7 +11,7 @@ type Draft = Omit<Card, 'id'>
 export default function CreateDeck({ navigate }: { navigate: (v: View) => void }) {
   const { createDeck } = useStore()
   const [title, setTitle] = useState('')
-  const [emoji, setEmoji] = useState(DECK_EMOJIS[0])
+  const [icon, setIcon] = useState(DEFAULT_ICON)
   const [cards, setCards] = useState<Draft[]>([])
   const [en, setEn] = useState('')
   const [de, setDe] = useState('')
@@ -26,14 +27,16 @@ export default function CreateDeck({ navigate }: { navigate: (v: View) => void }
 
   function save() {
     if (!title.trim() || cards.length === 0) return
-    const id = createDeck(title, emoji, `${cards.length} eigene Karten`, 'custom', cards)
+    const id = createDeck(title, icon, `${cards.length} eigene Karten`, 'custom', cards)
     navigate({ name: 'deck', deckId: id })
   }
 
   return (
     <div className="page">
       <div className="topbar" style={{ padding: '0 0 10px' }}>
-        <button className="back" onClick={() => navigate({ name: 'home' })}>←</button>
+        <button className="back" aria-label="Zurück" onClick={() => navigate({ name: 'home' })}>
+          <ArrowLeft size={20} aria-hidden />
+        </button>
         <h1>Eigene Kategorie</h1>
       </div>
 
@@ -43,10 +46,16 @@ export default function CreateDeck({ navigate }: { navigate: (v: View) => void }
       </div>
       <div className="field">
         <label>Symbol</label>
-        <div className="emoji-row">
-          {DECK_EMOJIS.map((e) => (
-            <button key={e} className={'emoji-pick' + (e === emoji ? ' active' : '')} onClick={() => setEmoji(e)}>
-              {e}
+        <div className="icon-row">
+          {PICKABLE_ICONS.map((key) => (
+            <button
+              key={key}
+              className={'icon-pick' + (key === icon ? ' active' : '')}
+              aria-label={key}
+              aria-pressed={key === icon}
+              onClick={() => setIcon(key)}
+            >
+              <CategoryIcon name={key} size={22} />
             </button>
           ))}
         </div>
@@ -67,7 +76,7 @@ export default function CreateDeck({ navigate }: { navigate: (v: View) => void }
           <input value={example} onChange={(e) => setExample(e.target.value)} placeholder="This is an example." />
         </div>
         <button className="btn sm block ghost" onClick={addCard} disabled={!en.trim() || !de.trim()}>
-          ＋ Karte hinzufügen
+          <Plus size={16} aria-hidden /> Karte hinzufügen
         </button>
       </div>
 
@@ -83,11 +92,11 @@ export default function CreateDeck({ navigate }: { navigate: (v: View) => void }
                 <div className="de">{c.de}</div>
               </div>
               <button
-                className="speak-btn danger"
-                style={{ width: 40, height: 40, fontSize: 18, background: '#fef2f2' }}
+                className="icon-btn danger"
+                aria-label={`${c.en} entfernen`}
                 onClick={() => setCards((cs) => cs.filter((_, j) => j !== i))}
               >
-                ✕
+                <X size={18} aria-hidden />
               </button>
             </div>
           ))}

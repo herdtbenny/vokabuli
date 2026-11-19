@@ -1,17 +1,35 @@
 import { useState } from 'react'
+import {
+  ArrowLeft,
+  Check,
+  Headphones,
+  Keyboard,
+  Layers,
+  ListChecks,
+  Shuffle,
+  Trash2,
+  Volume2,
+  type LucideIcon,
+} from 'lucide-react'
 import { useStore } from '../store'
 import { cardState, isDueReview, isNew } from '../srs'
+import { categories } from '../data/decks'
+import { CategoryIcon } from '../icons'
 import type { View } from '../nav'
 import type { StudyMode } from '../types'
 import { speak } from '../tts'
 
-const MODES: { mode: StudyMode; emoji: string; title: string; desc: string }[] = [
-  { mode: 'flip', emoji: '🔄', title: 'Karteikarten', desc: 'Umdrehen & selbst bewerten' },
-  { mode: 'choice', emoji: '🎯', title: 'Multiple Choice', desc: 'Richtige Antwort wählen' },
-  { mode: 'type', emoji: '⌨️', title: 'Schreiben', desc: 'Wort selbst eintippen' },
-  { mode: 'listen', emoji: '🔊', title: 'Hören', desc: 'Hören & erkennen' },
+const MODES: { mode: StudyMode; icon: LucideIcon; title: string; desc: string }[] = [
+  { mode: 'flip', icon: Layers, title: 'Karteikarten', desc: 'Umdrehen & selbst bewerten' },
+  { mode: 'choice', icon: ListChecks, title: 'Multiple Choice', desc: 'Richtige Antwort wählen' },
+  { mode: 'type', icon: Keyboard, title: 'Schreiben', desc: 'Wort selbst eintippen' },
+  { mode: 'listen', icon: Headphones, title: 'Hören', desc: 'Hören & erkennen' },
 ]
 const ALL_MODES = MODES.map((m) => m.mode)
+
+function CheckBadge({ on }: { on: boolean }) {
+  return <span className="check" aria-hidden>{on && <Check size={14} strokeWidth={3} />}</span>
+}
 
 export default function DeckView({ deckId, navigate }: { deckId: string; navigate: (v: View) => void }) {
   const { allDecks, currentProfile, deleteDeck } = useStore()
@@ -24,11 +42,14 @@ export default function DeckView({ deckId, navigate }: { deckId: string; navigat
     return (
       <div className="page">
         <p>Kategorie nicht gefunden.</p>
-        <button className="btn ghost" onClick={() => navigate({ name: 'home' })}>Zurück</button>
+        <button className="btn ghost" onClick={() => navigate({ name: 'home' })}>
+          Zurück
+        </button>
       </div>
     )
   }
 
+  const color = categories.find((c) => c.id === deck.categoryId)?.color ?? '#6d5efc'
   const dueCount = deck.cards.filter((c) => isDueReview(p.progress[c.id])).length
   const newCount = deck.cards.filter((c) => isNew(p.progress[c.id])).length
   const mastered = deck.cards.filter((c) => cardState(p.progress[c.id]) === 'mastered').length
@@ -40,16 +61,20 @@ export default function DeckView({ deckId, navigate }: { deckId: string; navigat
 
   function start() {
     if (!selected.length || !deck) return
-    // Reihenfolge stabil halten (wie in der Liste)
-    const modes = ALL_MODES.filter((m) => selected.includes(m))
+    const modes = ALL_MODES.filter((m) => selected.includes(m)) // Reihenfolge wie in der Liste
     navigate({ name: 'study', deckId: deck.id, modes })
   }
 
   return (
     <div className="page">
       <div className="topbar" style={{ padding: '0 0 10px' }}>
-        <button className="back" onClick={() => navigate({ name: 'home' })}>←</button>
-        <h1>{deck.emoji} {deck.title}</h1>
+        <button className="back" aria-label="Zurück" onClick={() => navigate({ name: 'home' })}>
+          <ArrowLeft size={20} aria-hidden />
+        </button>
+        <span className="title-icon" style={{ background: color + '22', color }}>
+          <CategoryIcon name={deck.icon} size={20} />
+        </span>
+        <h1>{deck.title}</h1>
       </div>
 
       <p className="muted">{deck.description}</p>
@@ -70,16 +95,20 @@ export default function DeckView({ deckId, navigate }: { deckId: string; navigat
         aria-pressed={allSelected}
         onClick={() => setSelected(allSelected ? [] : ALL_MODES)}
       >
-        <span className="check" aria-hidden>{allSelected ? '✓' : ''}</span>
+        <span className="mode-icon">
+          <Shuffle size={20} aria-hidden />
+        </span>
         <span>
           <strong>Alle Lernarten</strong>
           <small>Bunt gemischt – die volle Abwechslung</small>
         </span>
+        <CheckBadge on={allSelected} />
       </button>
 
       <div className="mode-grid">
         {MODES.map((m) => {
           const on = selected.includes(m.mode)
+          const Icon = m.icon
           return (
             <button
               key={m.mode}
@@ -87,8 +116,10 @@ export default function DeckView({ deckId, navigate }: { deckId: string; navigat
               aria-pressed={on}
               onClick={() => toggle(m.mode)}
             >
-              <span className="check" aria-hidden>{on ? '✓' : ''}</span>
-              <div className="emoji">{m.emoji}</div>
+              <CheckBadge on={on} />
+              <span className="mode-icon">
+                <Icon size={20} aria-hidden />
+              </span>
               <h4>{m.title}</h4>
               <p>{m.desc}</p>
             </button>
@@ -118,8 +149,8 @@ export default function DeckView({ deckId, navigate }: { deckId: string; navigat
                 <div className="en">{c.en}</div>
                 <div className="de">{c.de}</div>
               </div>
-              <button className="speak-btn" style={{ width: 40, height: 40, fontSize: 20 }} onClick={() => speak(c.en)}>
-                🔊
+              <button className="speak-btn small" aria-label={`${c.en} anhören`} onClick={() => speak(c.en)}>
+                <Volume2 size={18} aria-hidden />
               </button>
             </div>
           ))}
@@ -138,7 +169,7 @@ export default function DeckView({ deckId, navigate }: { deckId: string; navigat
               }
             }}
           >
-            Kategorie löschen
+            <Trash2 size={18} aria-hidden /> Kategorie löschen
           </button>
         </>
       )}

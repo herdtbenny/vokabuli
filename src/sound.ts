@@ -43,16 +43,4 @@ export const sound = {
     if (!enabled) return
     tone(196, 0, 0.18, 'sawtooth', 0.08)
   },
-  levelUp() {
-    if (!enabled) return
-    tone(523.25, 0, 0.12)
-    tone(659.25, 0.1, 0.12)
-    tone(783.99, 0.2, 0.12)
-    tone(1046.5, 0.3, 0.22)
-  },
-  achievement() {
-    if (!enabled) return
-    tone(659.25, 0, 0.1)
-    tone(880, 0.1, 0.18)
-  },
 }

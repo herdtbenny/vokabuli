@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { Card, Deck, Profile, Rating } from './types'
 import { decks as builtinDecks } from './data/decks'
-import { review as srsReview, cardState } from './srs'
-import { checkAchievements, levelFromXp } from './gamification'
+import { review as srsReview } from './srs'
 import { setSoundEnabled } from './sound'
+import { CATEGORY_ICONS, DEFAULT_ICON } from './icons'
 
 export interface Settings {
   sound: boolean
@@ -22,6 +22,12 @@ const defaultSettings: Settings = {
   sound: true,
 }
 
+// Ältere gespeicherte Daten an das aktuelle Format anpassen (z.B. Emoji -> Icon).
+function migrateDeck(d: Deck): Deck {
+  const icon = d.icon && CATEGORY_ICONS[d.icon] ? d.icon : DEFAULT_ICON
+  return { ...d, icon }
+}
+
 function load(): PersistShape {
   try {
     const raw = localStorage.getItem(KEY)
@@ -30,7 +36,7 @@ function load(): PersistShape {
       return {
         profiles: parsed.profiles ?? [],
         currentProfileId: parsed.currentProfileId ?? null,
-        customDecks: parsed.customDecks ?? [],
+        customDecks: (parsed.customDecks ?? []).map(migrateDeck),
         settings: { ...defaultSettings, ...(parsed.settings ?? {}) },
       }
     }
@@ -59,29 +65,19 @@ function yesterdayStr(): string {
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
-const XP_BY_RATING: Record<Rating, number> = { again: 2, hard: 6, good: 10, easy: 14 }
-
-export interface AnswerResult {
-  levelUp: boolean
-  fromLevel: number
-  toLevel: number
-  newAchievements: string[]
-  reachedGoal: boolean
-}
-
 interface StoreValue {
   profiles: Profile[]
   currentProfile: Profile | null
   customDecks: Deck[]
   allDecks: Deck[]
   settings: Settings
-  createProfile: (name: string, emoji: string, color: string) => void
+  createProfile: (name: string, color: string) => void
   selectProfile: (id: string) => void
   logout: () => void
   deleteProfile: (id: string) => void
   updateProfile: (patch: Partial<Profile>) => void
-  recordAnswer: (cardId: string, rating: Rating, perfectStreak: number) => AnswerResult
-  createDeck: (title: string, emoji: string, description: string, categoryId: string, cards: Omit<Card, 'id'>[]) => string
+  recordAnswer: (cardId: string, rating: Rating) => void
+  createDeck: (title: string, icon: string, description: string, categoryId: string, cards: Omit<Card, 'id'>[]) => string
   addCardToDeck: (deckId: string, card: Omit<Card, 'id'>) => void
   deleteDeck: (deckId: string) => void
   updateSettings: (patch: Partial<Settings>) => void
@@ -121,23 +117,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     allDecks,
     settings: state.settings,
 
-    createProfile(name, emoji, color) {
+    createProfile(name, color) {
       const p: Profile = {
         id: uid(),
         name: name.trim() || 'Neu',
-        emoji,
         color,
         createdAt: Date.now(),
-        xp: 0,
         streak: 0,
         longestStreak: 0,
         lastStudyDay: null,
-        dailyGoal: 15,
-        cardsStudiedToday: 0,
-        todayKey: null,
         totalReviews: 0,
         progress: {},
-        unlockedAchievements: [],
         stats: { correct: 0, wrong: 0 },
       }
       setState((s) => ({ ...s, profiles: [...s.profiles, p], currentProfileId: p.id }))
@@ -163,14 +153,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       patchCurrent((p) => ({ ...p, ...patch }))
     },
 
-    recordAnswer(cardId, rating, perfectStreak) {
-      let result: AnswerResult = {
-        levelUp: false,
-        fromLevel: 1,
-        toLevel: 1,
-        newAchievements: [],
-        reachedGoal: false,
-      }
+    recordAnswer(cardId, rating) {
       setState((s) => {
         if (!s.currentProfileId) return s
         const profiles = s.profiles.map((p) => {
@@ -178,64 +161,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           const next: Profile = { ...p, progress: { ...p.progress }, stats: { ...p.stats } }
           const today = todayStr()
 
-          // Tag / Streak
-          let cardsToday = next.cardsStudiedToday
+          // Tages-Serie
           if (next.lastStudyDay !== today) {
-            if (next.lastStudyDay === yesterdayStr()) next.streak += 1
-            else next.streak = 1
-            cardsToday = 0
+            next.streak = next.lastStudyDay === yesterdayStr() ? next.streak + 1 : 1
             next.lastStudyDay = today
-            next.todayKey = today
           }
           next.longestStreak = Math.max(next.longestStreak, next.streak)
 
-          // SRS-Fortschritt
+          // Spaced Repetition
           next.progress[cardId] = srsReview(next.progress[cardId], rating)
 
-          // Statistik / XP
-          const correct = rating !== 'again'
-          if (correct) next.stats.correct += 1
-          else next.stats.wrong += 1
+          // Statistik
+          if (rating === 'again') next.stats.wrong += 1
+          else next.stats.correct += 1
           next.totalReviews += 1
-          next.cardsStudiedToday = cardsToday + 1
-
-          const fromLevel = levelFromXp(next.xp)
-          next.xp += XP_BY_RATING[rating]
-          const toLevel = levelFromXp(next.xp)
-
-          const reachedGoal =
-            next.cardsStudiedToday >= next.dailyGoal &&
-            next.cardsStudiedToday - 1 < next.dailyGoal // genau beim Erreichen
-          const masteredCount = Object.values(next.progress).filter((pr) => cardState(pr) === 'mastered').length
-          const createdDeck = s.customDecks.length > 0
-          const newly = checkAchievements(next, {
-            masteredCount,
-            perfectStreak,
-            reachedGoal: next.cardsStudiedToday >= next.dailyGoal,
-            createdDeck,
-          })
-          next.unlockedAchievements = [...next.unlockedAchievements, ...newly]
-
-          result = {
-            levelUp: toLevel > fromLevel,
-            fromLevel,
-            toLevel,
-            newAchievements: newly,
-            reachedGoal,
-          }
           return next
         })
         return { ...s, profiles }
       })
-      return result
     },
 
-    createDeck(title, emoji, description, categoryId, cards) {
+    createDeck(title, icon, description, categoryId, cards) {
       const id = 'custom-' + uid()
       const deck: Deck = {
         id,
-        title: title.trim() || 'Mein Deck',
-        emoji: emoji || '📘',
+        title: title.trim() || 'Meine Kategorie',
+        icon: CATEGORY_ICONS[icon] ? icon : DEFAULT_ICON,
         description: description.trim(),
         categoryId,
         custom: true,
@@ -249,9 +200,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setState((s) => ({
         ...s,
         customDecks: s.customDecks.map((d) =>
-          d.id === deckId
-            ? { ...d, cards: [...d.cards, { ...card, id: `${deckId}-${Date.now()}` }] }
-            : d,
+          d.id === deckId ? { ...d, cards: [...d.cards, { ...card, id: `${deckId}-${Date.now()}` }] } : d,
         ),
       }))
     },

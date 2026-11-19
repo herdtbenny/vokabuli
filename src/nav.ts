@@ -6,15 +6,6 @@ export type View =
   | { name: 'study'; deckId: string; modes: StudyMode[]; quick?: boolean }
   | { name: 'create' }
   | { name: 'stats' }
-  | { name: 'achievements' }
-  | { name: 'settings' }
-
-export interface ToastItem {
-  id: number
-  emoji: string
-  title: string
-  subtitle?: string
-}
 
 // Avatar = Anfangsbuchstabe des Namens auf farbigem Grund
 export function initial(name: string): string {
@@ -23,4 +14,3 @@ export function initial(name: string): string {
 }
 
 export const PROFILE_COLORS = ['#6d5efc', '#ef4444', '#22c55e', '#f97316', '#eab308', '#06b6d4', '#ec4899', '#8b5cf6']
-export const DECK_EMOJIS = ['📘', '⚖️', '💼', '🛒', '⚽', '💰', '🍽️', '✈️', '🎬', '🎵', '🧪', '💻']

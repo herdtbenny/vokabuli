@@ -12,7 +12,7 @@ export interface Card {
 export interface Deck {
   id: string
   title: string
-  emoji: string
+  icon: string // Schlüssel aus CATEGORY_ICONS (src/icons.tsx)
   description: string
   categoryId: string
   cards: Card[]
@@ -22,7 +22,7 @@ export interface Deck {
 export interface Category {
   id: string
   title: string
-  emoji: string
+  icon: string
   color: string
 }
 
@@ -37,30 +37,16 @@ export interface CardProgress {
   learned: boolean // schon einmal "gekonnt"?
 }
 
-export interface Achievement {
-  id: string
-  title: string
-  description: string
-  emoji: string
-}
-
 export interface Profile {
   id: string
   name: string
-  emoji: string
   color: string
   createdAt: number
-  // Fortschritt
-  xp: number
   streak: number
   longestStreak: number
   lastStudyDay: string | null // "YYYY-MM-DD"
-  dailyGoal: number
-  cardsStudiedToday: number
-  todayKey: string | null
   totalReviews: number
   progress: Record<string, CardProgress> // cardId -> Fortschritt
-  unlockedAchievements: string[]
   stats: { correct: number; wrong: number }
 }
 

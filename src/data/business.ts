@@ -1,6 +1,6 @@
 import type { RawCard } from './raw'
 
-// Business & Office Flex – Niveau B2–C1
+// Business & Office – Niveau B2–C1
 export const business: RawCard[] = [
   // --- Meetings & Kommunikation ---
   ["to touch base", "sich kurz abstimmen", "Let's touch base after lunch.", "Lass uns nach dem Mittag kurz abstimmen.", "Idiom"],
@@ -76,7 +76,7 @@ export const business: RawCard[] = [
   ["to iron out", "ausbügeln / klären", "We still need to iron out a few details.", "Wir müssen noch ein paar Details klären."],
   ["to touch on", "kurz ansprechen", "I'll touch on the budget later.", "Auf das Budget gehe ich später kurz ein."],
 
-  // --- Idiome & Flex-Phrasen ---
+  // --- Idiome & Redewendungen ---
   ["low-hanging fruit", "schnelle, einfache Erfolge", "Let's go for the low-hanging fruit first.", "Holen wir uns zuerst die schnellen Erfolge.", "Idiom"],
   ["to move the needle", "einen spürbaren Unterschied machen", "Will this feature really move the needle?", "Macht dieses Feature wirklich einen Unterschied?"],
   ["to think outside the box", "um die Ecke denken", "We need to think outside the box.", "Wir müssen um die Ecke denken."],
