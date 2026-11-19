@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useStore } from '../store'
-import { isDue } from '../srs'
+import { isDueReview, isNew, nextReviewLabel } from '../srs'
 import { speak } from '../tts'
 import { sound } from '../sound'
 import { levelTitle, getAchievement } from '../gamification'
@@ -9,7 +9,7 @@ import type { ToastItem, View } from '../nav'
 
 interface Props {
   deckId: string
-  mode: StudyMode
+  modes: StudyMode[]
   quick?: boolean
   navigate: (v: View) => void
   pushToast: (t: Omit<ToastItem, 'id'>) => void
@@ -36,35 +36,46 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-export default function StudySession({ deckId, mode, quick, navigate, pushToast, fireConfetti }: Props) {
+const MODE_LABEL: Record<StudyMode, string> = {
+  flip: 'Karteikarte',
+  choice: 'Multiple Choice',
+  type: 'Schreiben',
+  listen: 'Hören',
+}
+
+export default function StudySession({ deckId, modes, quick, navigate, pushToast, fireConfetti }: Props) {
   const { allDecks, currentProfile, recordAnswer } = useStore()
   const p = currentProfile!
 
-  // Pool & Distraktoren einmalig beim Start bauen
-  const { pool, distractors, deckTitle } = useMemo(() => {
+  // Pool, Distraktoren und Modus pro Karte einmalig beim Start festlegen
+  const { pool, distractors, deckTitle, cardModes } = useMemo(() => {
     let source: Card[] = []
     let title = 'Lernen'
+    const byDue = (a: Card, b: Card) => (p.progress[a.id]?.due ?? 0) - (p.progress[b.id]?.due ?? 0)
     if (quick || deckId === '__due__') {
-      source = allDecks.flatMap((d) => d.cards).filter((c) => isDue(p.progress[c.id]))
-      source = shuffle(source)
+      source = shuffle(allDecks.flatMap((d) => d.cards).filter((c) => isDueReview(p.progress[c.id])))
       title = 'Schnell-Review'
     } else {
       const deck = allDecks.find((d) => d.id === deckId)
       const cards = deck ? deck.cards : []
       title = deck?.title ?? 'Lernen'
-      // fällige zuerst, dann neue, dann Rest
-      source = [...cards].sort((a, b) => {
-        const pa = p.progress[a.id]
-        const pb = p.progress[b.id]
-        const da = pa ? pa.due : 0
-        const db = pb ? pb.due : 0
-        return da - db
-      })
+      // fällige Wiederholungen zuerst, dann neue Karten (gemischt), dann der Rest
+      const due = cards.filter((c) => isDueReview(p.progress[c.id])).sort(byDue)
+      const fresh = shuffle(cards.filter((c) => isNew(p.progress[c.id])))
+      const later = cards.filter((c) => !isNew(p.progress[c.id]) && !isDueReview(p.progress[c.id])).sort(byDue)
+      source = [...due, ...fresh, ...later]
     }
-    const dist = allDecks.flatMap((d) => d.cards)
-    return { pool: source.slice(0, SESSION_MAX), distractors: dist, deckTitle: title }
+    const chosen = source.slice(0, SESSION_MAX)
+    const useModes = modes.length ? modes : (['flip'] as StudyMode[])
+    return {
+      pool: chosen,
+      distractors: allDecks.flatMap((d) => d.cards),
+      deckTitle: title,
+      cardModes: chosen.map(() => useModes[(Math.random() * useModes.length) | 0]),
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  const mixed = new Set(cardModes).size > 1
 
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
@@ -76,6 +87,7 @@ export default function StudySession({ deckId, mode, quick, navigate, pushToast,
   const [done, setDone] = useState(pool.length === 0)
 
   const card = pool[index]
+  const mode: StudyMode = cardModes[index] ?? 'flip'
 
   // Optionen für Choice / Listen
   const options = useMemo(() => {
@@ -173,7 +185,10 @@ export default function StudySession({ deckId, mode, quick, navigate, pushToast,
           {index + 1}/{pool.length}
         </span>
       </div>
-      <div className="muted" style={{ textAlign: 'center', marginBottom: 4 }}>{deckTitle}</div>
+      <div className="muted" style={{ textAlign: 'center', marginBottom: 4 }}>
+        {deckTitle}
+        {mixed && <> · {MODE_LABEL[mode]}</>}
+      </div>
 
       {/* ---------- FLIP ---------- */}
       {mode === 'flip' && (
@@ -204,20 +219,25 @@ export default function StudySession({ deckId, mode, quick, navigate, pushToast,
             </div>
           </div>
           {flipped ? (
-            <div className="rate-row">
-              <button className="rate-btn rate-again" onClick={() => handleResult('again')}>
-                Nochmal<small>&lt; 1 Min</small>
-              </button>
-              <button className="rate-btn rate-hard" onClick={() => handleResult('hard')}>
-                Schwer<small>bald</small>
-              </button>
-              <button className="rate-btn rate-good" onClick={() => handleResult('good')}>
-                Gut<small>Tage</small>
-              </button>
-              <button className="rate-btn rate-easy" onClick={() => handleResult('easy')}>
-                Leicht<small>länger</small>
-              </button>
-            </div>
+            <>
+              <p className="rate-explain">
+                Wie gut kanntest du die Karte? Danach richtet sich, wann sie wiederkommt.
+              </p>
+              <div className="rate-row">
+                <button className="rate-btn rate-again" onClick={() => handleResult('again')}>
+                  Nochmal<small>in {nextReviewLabel(p.progress[card.id], 'again')}</small>
+                </button>
+                <button className="rate-btn rate-hard" onClick={() => handleResult('hard')}>
+                  Schwer<small>in {nextReviewLabel(p.progress[card.id], 'hard')}</small>
+                </button>
+                <button className="rate-btn rate-good" onClick={() => handleResult('good')}>
+                  Gut<small>in {nextReviewLabel(p.progress[card.id], 'good')}</small>
+                </button>
+                <button className="rate-btn rate-easy" onClick={() => handleResult('easy')}>
+                  Leicht<small>in {nextReviewLabel(p.progress[card.id], 'easy')}</small>
+                </button>
+              </div>
+            </>
           ) : (
             <button className="btn block" onClick={() => setFlipped(true)}>
               Umdrehen

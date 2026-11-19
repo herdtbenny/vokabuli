@@ -7,9 +7,6 @@ import { setSoundEnabled } from './sound'
 
 export interface Settings {
   sound: boolean
-  aiKey: string
-  aiBaseUrl: string
-  aiModel: string
 }
 
 interface PersistShape {
@@ -23,9 +20,6 @@ const KEY = 'wortschatz:v1'
 
 const defaultSettings: Settings = {
   sound: true,
-  aiKey: '',
-  aiBaseUrl: 'https://api.openai.com/v1',
-  aiModel: 'gpt-4o-mini',
 }
 
 function load(): PersistShape {

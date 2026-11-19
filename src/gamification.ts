@@ -43,7 +43,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'level-5', emoji: '⭐', title: 'Aufsteiger', description: 'Erreiche Level 5.' },
   { id: 'master-25', emoji: '👑', title: 'Gemeistert', description: '25 Karten komplett gemeistert.' },
   { id: 'perfect-10', emoji: '✨', title: 'Makellos', description: '10 richtige Antworten in Folge.' },
-  { id: 'own-deck', emoji: '🛠️', title: 'Selbstgemacht', description: 'Erstelle ein eigenes Deck.' },
+  { id: 'own-deck', emoji: '🛠️', title: 'Selbstgemacht', description: 'Erstelle eine eigene Kategorie.' },
 ]
 
 export function getAchievement(id: string): Achievement | undefined {

@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { useStore } from '../store'
 import { levelFromXp, levelTitle } from '../gamification'
-import { AVATAR_EMOJIS, PROFILE_COLORS } from '../nav'
+import { PROFILE_COLORS, initial } from '../nav'
 import { APP_NAME, APP_MARK } from '../brand'
 
 export default function ProfilePicker() {
   const { profiles, selectProfile, createProfile, deleteProfile } = useStore()
   const [creating, setCreating] = useState(profiles.length === 0)
   const [name, setName] = useState('')
-  const [emoji, setEmoji] = useState(AVATAR_EMOJIS[0])
   const [color, setColor] = useState(PROFILE_COLORS[0])
   const [manage, setManage] = useState(false)
 
@@ -25,16 +24,6 @@ export default function ProfilePicker() {
           <div className="field">
             <label>Name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Mama" maxLength={16} />
-          </div>
-          <div className="field">
-            <label>Avatar</label>
-            <div className="emoji-row">
-              {AVATAR_EMOJIS.map((e) => (
-                <button key={e} className={'emoji-pick' + (e === emoji ? ' active' : '')} onClick={() => setEmoji(e)}>
-                  {e}
-                </button>
-              ))}
-            </div>
           </div>
           <div className="field">
             <label>Farbe</label>
@@ -55,7 +44,7 @@ export default function ProfilePicker() {
           className="btn block"
           disabled={!name.trim()}
           onClick={() => {
-            createProfile(name, emoji, color)
+            createProfile(name, initial(name), color)
           }}
         >
           Los geht's 🚀
@@ -85,7 +74,7 @@ export default function ProfilePicker() {
             onClick={() => (manage ? deleteProfile(p.id) : selectProfile(p.id))}
           >
             <div className="profile-avatar" style={{ background: p.color }}>
-              {p.emoji}
+              {initial(p.name)}
             </div>
             <div className="pname">{p.name}</div>
             <div className="plevel">
