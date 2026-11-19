@@ -34,6 +34,33 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
+// Grobe Wortart, damit falsche Antworten zur richtigen "passen" (Verb zu Verb, Phrase zu Phrase)
+function kind(en: string): 'verb' | 'phrase' | 'word' {
+  if (/^to\s/i.test(en)) return 'verb'
+  return en.trim().split(/\s+/).length > 1 ? 'phrase' : 'word'
+}
+
+// Wählt plausible falsche Antworten: gleiche Kategorie, gleiche Wortart, ähnlich lange Übersetzung.
+function pickDistractors(card: Card, pool: Card[], n = 3): string[] {
+  const candidates = pool.filter((c) => c.id !== card.id && c.de !== card.de)
+  const k = kind(card.en)
+  const len = card.de.length
+  const similar = candidates
+    .filter((c) => kind(c.en) === k)
+    .sort((a, b) => Math.abs(a.de.length - len) - Math.abs(b.de.length - len))
+  // aus den ähnlichsten zufällig wählen (Abwechslung), dann notfalls mit dem Rest auffüllen
+  const ordered = [...shuffle(similar.slice(0, 12)), ...shuffle(candidates)]
+  const seen = new Set([card.de])
+  const picked: string[] = []
+  for (const c of ordered) {
+    if (picked.length >= n) break
+    if (seen.has(c.de)) continue
+    seen.add(c.de)
+    picked.push(c.de)
+  }
+  return picked
+}
+
 const MODE_LABEL: Record<StudyMode, string> = {
   flip: 'Karteikarte',
   choice: 'Multiple Choice',
@@ -61,7 +88,7 @@ export default function StudySession({ deckId, modes, quick, navigate }: Props) 
   const p = currentProfile!
 
   // Pool, Distraktoren und Lernart pro Karte einmalig beim Start festlegen
-  const { pool, distractors, deckTitle, cardModes } = useMemo(() => {
+  const { pool, deckCardsOf, allCards, deckTitle, cardModes } = useMemo(() => {
     let source: Card[] = []
     let title = 'Lernen'
     const byDue = (a: Card, b: Card) => (p.progress[a.id]?.due ?? 0) - (p.progress[b.id]?.due ?? 0)
@@ -80,9 +107,13 @@ export default function StudySession({ deckId, modes, quick, navigate }: Props) 
     }
     const chosen = source.slice(0, SESSION_MAX)
     const useModes = modes.length ? modes : (['flip'] as StudyMode[])
+    // Zu jeder Karte die Karten ihrer eigenen Kategorie (auch im Schnell-Review über mehrere Kategorien)
+    const deckCardsOf = new Map<string, Card[]>()
+    for (const d of allDecks) for (const c of d.cards) deckCardsOf.set(c.id, d.cards)
     return {
       pool: chosen,
-      distractors: allDecks.flatMap((d) => d.cards),
+      deckCardsOf,
+      allCards: allDecks.flatMap((d) => d.cards),
       deckTitle: title,
       cardModes: chosen.map(() => useModes[(Math.random() * useModes.length) | 0]),
     }
@@ -104,9 +135,9 @@ export default function StudySession({ deckId, modes, quick, navigate }: Props) 
   // Antwortoptionen für Multiple Choice / Hören
   const options = useMemo(() => {
     if (!card) return []
-    const wrong = shuffle(distractors.filter((c) => c.id !== card.id && c.de !== card.de))
-      .slice(0, 3)
-      .map((c) => c.de)
+    const own = deckCardsOf.get(card.id) ?? []
+    // Sehr kleine eigene Kategorien (< 4 Karten) bekommen notfalls Antworten aus allen Kategorien
+    const wrong = pickDistractors(card, own.length >= 4 ? own : allCards)
     return shuffle([card.de, ...wrong])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, card?.id])
