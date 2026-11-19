@@ -4,6 +4,7 @@ import { decks as builtinDecks } from './data/decks'
 import { review as srsReview } from './srs'
 import { setSoundEnabled } from './sound'
 import { CATEGORY_ICONS, DEFAULT_ICON } from './icons'
+import { PROFILE_COLORS } from './nav'
 
 export interface Settings {
   sound: boolean
@@ -28,13 +29,18 @@ function migrateDeck(d: Deck): Deck {
   return { ...d, icon }
 }
 
+// Alte Profilfarben (z.B. Lila aus dem ersten Design) auf die aktuelle Palette umstellen
+function migrateProfile(p: Profile): Profile {
+  return PROFILE_COLORS.includes(p.color) ? p : { ...p, color: PROFILE_COLORS[0] }
+}
+
 function load(): PersistShape {
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as PersistShape
       return {
-        profiles: parsed.profiles ?? [],
+        profiles: (parsed.profiles ?? []).map(migrateProfile),
         currentProfileId: parsed.currentProfileId ?? null,
         customDecks: (parsed.customDecks ?? []).map(migrateDeck),
         settings: { ...defaultSettings, ...(parsed.settings ?? {}) },

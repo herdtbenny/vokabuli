@@ -49,7 +49,7 @@ export default function DeckView({ deckId, navigate }: { deckId: string; navigat
     )
   }
 
-  const color = categories.find((c) => c.id === deck.categoryId)?.color ?? '#6d5efc'
+  const color = categories.find((c) => c.id === deck.categoryId)?.color ?? '#16202f'
   const dueCount = deck.cards.filter((c) => isDueReview(p.progress[c.id])).length
   const newCount = deck.cards.filter((c) => isNew(p.progress[c.id])).length
   const mastered = deck.cards.filter((c) => cardState(p.progress[c.id]) === 'mastered').length

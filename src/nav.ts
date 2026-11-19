@@ -5,7 +5,6 @@ export type View =
   | { name: 'deck'; deckId: string }
   | { name: 'study'; deckId: string; modes: StudyMode[]; quick?: boolean }
   | { name: 'create' }
-  | { name: 'stats' }
 
 // Avatar = Anfangsbuchstabe des Namens auf farbigem Grund
 export function initial(name: string): string {
@@ -13,4 +12,4 @@ export function initial(name: string): string {
   return (t ? t[0] : '?').toUpperCase()
 }
 
-export const PROFILE_COLORS = ['#6d5efc', '#ef4444', '#22c55e', '#f97316', '#eab308', '#06b6d4', '#ec4899', '#8b5cf6']
+export const PROFILE_COLORS = ['#2456d6', '#e5484d', '#2f9e44', '#d9480f', '#b7791f', '#0b8aa8', '#475569', '#c2255c']

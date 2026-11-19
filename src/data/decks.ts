@@ -10,13 +10,13 @@ import { travel } from './travel'
 
 // Farben & Icons der eingebauten Kategorien (Icon-Schlüssel siehe src/icons.tsx)
 export const categories: Category[] = [
-  { id: 'law', title: 'Jura & Legal English', icon: 'scale', color: '#8b5cf6' },
-  { id: 'business', title: 'Business & Office', icon: 'briefcase', color: '#3b82f6' },
-  { id: 'daily', title: 'Alltag & Umgangssprache', icon: 'shopping-bag', color: '#22c55e' },
-  { id: 'sport', title: 'Sport', icon: 'dumbbell', color: '#f97316' },
-  { id: 'finance', title: 'Wirtschaft & Finance', icon: 'coins', color: '#eab308' },
-  { id: 'food', title: 'Essen & Restaurant', icon: 'utensils', color: '#ef4444' },
-  { id: 'travel', title: 'Reisen', icon: 'plane', color: '#06b6d4' },
+  { id: 'law', title: 'Jura & Legal English', icon: 'scale', color: '#2456d6' },
+  { id: 'business', title: 'Business & Office', icon: 'briefcase', color: '#475569' },
+  { id: 'daily', title: 'Alltag & Umgangssprache', icon: 'shopping-bag', color: '#d9480f' },
+  { id: 'sport', title: 'Sport', icon: 'dumbbell', color: '#e5484d' },
+  { id: 'finance', title: 'Wirtschaft & Finance', icon: 'coins', color: '#b7791f' },
+  { id: 'food', title: 'Essen & Restaurant', icon: 'utensils', color: '#2f9e44' },
+  { id: 'travel', title: 'Reisen', icon: 'plane', color: '#0b8aa8' },
 ]
 
 export const decks: Deck[] = [
