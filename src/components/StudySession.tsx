@@ -65,7 +65,6 @@ function pickDistractors(card: Card, pool: Card[], field: 'de' | 'en', n = 3): s
 const MODE_LABEL: Record<StudyMode, string> = {
   flip: 'Karteikarte',
   choice: 'Multiple Choice',
-  reverse: 'Umgekehrt',
   type: 'Schreiben',
   listen: 'Hören',
 }
@@ -138,7 +137,7 @@ export default function StudySession({ deckId, modes, quick, navigate }: Props) 
   const options = useMemo(() => {
     if (!card) return []
     const own = deckCardsOf.get(card.id) ?? []
-    const field = mode === 'reverse' ? 'en' : 'de'
+    const field = mode === 'choice' ? 'en' : 'de' // Multiple Choice: englische Antworten
     // Sehr kleine eigene Kategorien (< 4 Karten) bekommen notfalls Antworten aus allen Kategorien
     const wrong = pickDistractors(card, own.length >= 4 ? own : allCards, field)
     return shuffle([card[field], ...wrong])
@@ -194,7 +193,7 @@ export default function StudySession({ deckId, modes, quick, navigate }: Props) 
   }
 
   function renderChoices(delay: number) {
-    const answer = mode === 'reverse' ? card.en : card.de
+    const answer = mode === 'choice' ? card.en : card.de
     return (
       <div className="choices">
         {options.map((opt) => {
@@ -211,7 +210,7 @@ export default function StudySession({ deckId, modes, quick, navigate }: Props) 
               disabled={!!picked}
               onClick={() => {
                 setPicked(opt)
-                if (mode === 'reverse') speak(card.en)
+                if (mode === 'choice') speak(card.en)
                 setTimeout(() => handleResult(opt === answer ? 'good' : 'again'), delay)
               }}
             >
@@ -289,21 +288,8 @@ export default function StudySession({ deckId, modes, quick, navigate }: Props) 
         </>
       )}
 
-      {/* ---------- Multiple Choice ---------- */}
+      {/* ---------- Multiple Choice: Deutsch -> Englisch ---------- */}
       {mode === 'choice' && (
-        <>
-          <div className="prompt-card" style={{ margin: '16px 0' }}>
-            {card.note && <span className="note">{card.note}</span>}
-            <div className="big">{card.en}</div>
-            <SpeakButton text={card.en} />
-            <div className="muted">Was bedeutet das?</div>
-          </div>
-          {renderChoices(850)}
-        </>
-      )}
-
-      {/* ---------- Umgekehrt: Deutsch -> Englisch ---------- */}
-      {mode === 'reverse' && (
         <>
           <div className="prompt-card">
             <div className="big" style={{ fontSize: 26 }}>

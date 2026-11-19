@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   ArrowLeft,
-  ArrowLeftRight,
   Check,
   Headphones,
   Keyboard,
@@ -24,8 +23,7 @@ import { speak } from '../tts'
 
 const MODES: { mode: StudyMode; icon: LucideIcon; title: string; desc: string }[] = [
   { mode: 'flip', icon: Layers, title: 'Karteikarten', desc: 'Umdrehen & selbst bewerten' },
-  { mode: 'choice', icon: ListChecks, title: 'Multiple Choice', desc: 'Englisch → Deutsch wählen' },
-  { mode: 'reverse', icon: ArrowLeftRight, title: 'Umgekehrt', desc: 'Deutsch → Englisch wählen' },
+  { mode: 'choice', icon: ListChecks, title: 'Multiple Choice', desc: 'Deutsch → passendes Englisch wählen' },
   { mode: 'type', icon: Keyboard, title: 'Schreiben', desc: 'Wort selbst eintippen' },
   { mode: 'listen', icon: Headphones, title: 'Hören', desc: 'Hören & erkennen' },
 ]
@@ -43,7 +41,7 @@ export default function DeckView({ deckId, navigate }: { deckId: string; navigat
   const [newDe, setNewDe] = useState('')
   const [newExample, setNewExample] = useState('')
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<StudyMode[]>([])
+  const [selected, setSelected] = useState<StudyMode[]>(ALL_MODES) // standardmäßig alle Lernarten
   const p = currentProfile!
 
   if (!deck) {
